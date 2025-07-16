@@ -20,10 +20,11 @@ int channelR = 0;        // PWM channel for right motors
 int channelL = 1;        // PWM channel for left motors
 int max_pwm = 255;
 int maxSpeed = 255;
-int baseSpeed = 150;
+int baseSpeed = 90;
 int currentSpeed = baseSpeed;
 int speedChangeRate = 8;
 int joystickDeadzone = 15; 
+float turnSensitivity = 0.6 ;
 
 //******************CODE FROM EXAMPLE SKETCH(NOTHING TO CHANGE)*********************
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
@@ -154,61 +155,66 @@ void dumpGamepad(ControllerPtr ctl) {
 // }
 
 void processGamepad(ControllerPtr ctl) {
-    int yInput = int(ctl->axisY()) ; 
-    int xInput = int(ctl->axisX()) ;
-    int accelerate = int(ctl->throttle());
+    float yInput = int(ctl->axisY()) ; 
+    float xInput = int(ctl->axisX()) ;
+    int accel = int(ctl->throttle());
     int brake = int(ctl->brake());
-    bool pturn = bool(ctl->buttons() & 0x0200);
+    bool pturn = bool(ctl->buttons() & 0x0004);
 
-    int yAxis = map(yInput,-511,512,-255,255);
-    int xAxis = map(xInput,-511,512,-255,255);
+    float yAxis = yInput / 512.0 ;
+    float xAxis = xInput / 512.0 ;
 
 
     if (abs(yAxis) < joystickDeadzone) yAxis = 0;
     if (abs(xAxis) < joystickDeadzone) xAxis = 0;
 
-    if (accelerate > 15 /*check the printed values to set this deadzone*/ ) {
-        int targetSpeed = map(accelerate, 0, 1023, baseSpeed, maxSpeed);   //turn the acceleration input form trigger input range to motor speed range
-                                                                        //map(input value,input range,output range)
-        if (currentSpeed < targetSpeed) {
-            currentSpeed = min(currentSpeed + speedChangeRate, targetSpeed);   //increase speed stepwise to reduce jerk from sudden increase
-        } else {
-             currentSpeed = targetSpeed;
-        }
-    } else if (brake > 15  /*check the printed values to set this deadzone*/  ) {
-    
-    int brakeIntensity = map(brake, 0, 1023, 0, baseSpeed);      ///turn the brake input form trigger input range to motor speed range
-    int targetSpeed = max(baseSpeed - brakeIntensity, 0);  
+    if (pturn) {
+        // point turn
+        int target = min(maxSpeed / 2, currentSpeed + speedChangeRate);
+        currentSpeed += (currentSpeed < target) ? speedChangeRate : -speedChangeRate;
+        setMotorSpeeds(currentSpeed, -currentSpeed);
+    } else {
+        // deadzones
+        if (abs(yAxis) < joystickDeadzone) yAxis = 0;
+        if (abs(xAxis) < joystickDeadzone) xAxis = 0;
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
-        if (currentSpeed > targetSpeed) {
-            currentSpeed = max(currentSpeed - speedChangeRate * 2, targetSpeed); // Faster braking   //decrease speed stepwise to reduce jerk from sudden decrease
+
+        //*test part*
+        // Normalize to -1.0 to +1.0 range (adjust 512 based on your controller's range)
+        yAxis = yAxis / 512.0;
+        xAxis = xAxis / 512.0;
+        
+        // Clamp to prevent overflow
+        yAxis = constrain(yAxis, -1.0, 1.0);
+        xAxis = constrain(xAxis, -1.0, 1.0);
+
+        // Apply turn sensitivity reduction
+        xAxis *= turnSensitivity;
+
+        // throttle/brake overrides
+        if (accel > 25) {
+            int tgt = map(accel, 0, 1023, baseSpeed, maxSpeed);
+            currentSpeed = min(currentSpeed + speedChangeRate, tgt);
+        } else if (brake > 25) {
+            int brk = map(brake, 0, 1023, 0, baseSpeed);
+            int tgt = max(baseSpeed - brk, 0);
+            currentSpeed = max(currentSpeed - speedChangeRate * 2, tgt);
         } else {
-            currentSpeed = targetSpeed;
+            if (currentSpeed < baseSpeed) currentSpeed = min(currentSpeed + speedChangeRate, baseSpeed);
+            else if (currentSpeed > baseSpeed) currentSpeed = max(currentSpeed - speedChangeRate, baseSpeed);
         }
-    } 
-    else if(pturn){
-        setMotorSpeeds(maxSpeed/2,-maxSpeed/2); //set speed after testing..full speed might be jerky...
-        return;
+
+        //test part ends
+
+        // differential drive mix with proper scaling
+        float scale = (float)currentSpeed / (float)maxSpeed;
+        int forward = (int)(yAxis * scale * maxSpeed);
+        int turn = (int)(xAxis * scale * maxSpeed);
+        
+        int leftSp  = constrain(forward - turn, -max_pwm, max_pwm);
+        int rightSp = constrain(forward + turn, -max_pwm, max_pwm);
+        setMotorSpeeds(leftSp, rightSp);
     }
-    else {
-    // No trigger input - return to base speed
-        if (currentSpeed < baseSpeed) {
-            currentSpeed = min(currentSpeed + speedChangeRate, baseSpeed);
-        } else if (currentSpeed > baseSpeed) {
-            currentSpeed = max(currentSpeed - speedChangeRate, baseSpeed);
-        }
-  }
-  
-// Calculate differential drive speeds using the combined formula
-int xMapped = map(xAxis, -511, 512, -currentSpeed, currentSpeed);
-int yMapped = map(yAxis, -511, 512, -currentSpeed, currentSpeed);
-    
-// Apply differential drive formula
-int leftSpeed = constrain(yMapped + xMapped, -max_pwm, max_pwm);
-int rightSpeed = constrain(yMapped - xMapped, -max_pwm, max_pwm);
-
-   setMotorSpeeds(leftSpeed, rightSpeed);
   
    dumpGamepad(ctl);
 }

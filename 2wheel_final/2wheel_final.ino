@@ -18,7 +18,9 @@ int maxSpeed        = 255;  // maps to “full throttle”
 int baseSpeed       = 90;   // default cruising speed
 int currentSpeed    = baseSpeed;
 int speedChangeRate = 4;    // ramp up/down step
-int joystickDeadzone = 15;  // smaller deadzone for more control
+int joystickDeadzone = 30;  // smaller deadzone for more control
+float turnSensitivity = 0.6;
+
 
 // —————— BLUPAD32 GAMEPAD ——————
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
@@ -44,6 +46,9 @@ void onDisconnectedController(ControllerPtr ctl) {
     }
 }
 
+// Function declaration
+void setMotorSpeeds(int leftSpeed, int rightSpeed);
+
 // Debug print
 void dumpGamepad(ControllerPtr ctl) {
     Serial.printf(
@@ -54,17 +59,20 @@ void dumpGamepad(ControllerPtr ctl) {
 }
 
 void processGamepad(ControllerPtr ctl) {
-    // Normalize joystick values to -1.0 to +1.0
-    float yNorm = (float)(ctl->axisY()) / 512.0f;
-    float xNorm = (float)(ctl->axisX()) / 512.0f;
-
-    // Apply cubic scaling for finer control at low input, keep full range
-    int yAxis = (int)(pow(yNorm, 3) * 255);
-    int xAxis = (int)(pow(xNorm, 3) * 255);
+    float yAxis = (float)(ctl->axisY());
+    float xAxis = (float)(ctl->axisX());
 
     int accel = ctl->throttle();  // 0–1023
     int brake = ctl->brake();     // 0–1023
     bool pturn = ctl->buttons() & 0x0004;
+
+    // Emergency stop check (example: both shoulder buttons)
+    if ((ctl->buttons() & 0x0030) == 0x0030) {  // L1 + R1 pressed
+        setMotorSpeeds(0, 0);
+        Serial.println("EMERGENCY STOP ACTIVATED");
+        return;
+    }
+
 
     if (pturn) {
         // point turn
@@ -76,24 +84,41 @@ void processGamepad(ControllerPtr ctl) {
         if (abs(yAxis) < joystickDeadzone) yAxis = 0;
         if (abs(xAxis) < joystickDeadzone) xAxis = 0;
 
+
+        //*test part*
+        // Normalize to -1.0 to +1.0 range (adjust 512 based on your controller's range)
+        yAxis = yAxis / 512.0;
+        xAxis = xAxis / 512.0;
+        
+        // Clamp to prevent overflow
+        yAxis = constrain(yAxis, -1.0, 1.0);
+        xAxis = constrain(xAxis, -1.0, 1.0);
+
+        // Apply turn sensitivity reduction
+        xAxis *= turnSensitivity;
+
         // throttle/brake overrides
-        if (accel > 15) {
+        if (accel > 25) {
             int tgt = map(accel, 0, 1023, baseSpeed, maxSpeed);
             currentSpeed = min(currentSpeed + speedChangeRate, tgt);
-        } else if (brake > 15) {
+        } else if (brake > 25) {
             int brk = map(brake, 0, 1023, 0, baseSpeed);
             int tgt = max(baseSpeed - brk, 0);
             currentSpeed = max(currentSpeed - speedChangeRate * 2, tgt);
         } else {
-            if (currentSpeed < baseSpeed) currentSpeed += speedChangeRate;
-            else if (currentSpeed > baseSpeed) currentSpeed -= speedChangeRate;
+            if (currentSpeed < baseSpeed) currentSpeed = min(currentSpeed + speedChangeRate, baseSpeed);
+            else if (currentSpeed > baseSpeed) currentSpeed = max(currentSpeed - speedChangeRate, baseSpeed);
         }
 
-        // differential drive mix
-        float scale = (float)currentSpeed / maxSpeed;
-        int forward = (int)(yAxis * scale);
-        int leftSp  = constrain(forward - xAxis, -max_pwm, max_pwm);
-        int rightSp = constrain(forward + xAxis, -max_pwm, max_pwm);
+        //test part ends
+
+        // differential drive mix with proper scaling
+        float scale = (float)currentSpeed / (float)maxSpeed;
+        int forward = (int)(yAxis * scale * maxSpeed);
+        int turn = (int)(xAxis * scale * maxSpeed);
+        
+        int leftSp  = constrain(forward - turn, -max_pwm, max_pwm);
+        int rightSp = constrain(forward + turn, -max_pwm, max_pwm);
         setMotorSpeeds(leftSp, rightSp);
     }
 
