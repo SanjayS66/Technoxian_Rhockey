@@ -36,18 +36,21 @@ void onConnectedController(ControllerPtr ctl) {
     Serial.println("CALLBACK: No empty slot for new controller");
 }
 
+// Function declaration
+void setMotorSpeeds(int leftSpeed, int rightSpeed);
+
+
 void onDisconnectedController(ControllerPtr ctl) {
     for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
         if (myControllers[i] == ctl) {
             Serial.printf("CALLBACK: Controller disconnected from index=%d\n", i);
             myControllers[i] = nullptr;
+            setMotorSpeeds(0,0);
             return;
         }
     }
 }
 
-// Function declaration
-void setMotorSpeeds(int leftSpeed, int rightSpeed);
 
 // Debug print
 void dumpGamepad(ControllerPtr ctl) {
