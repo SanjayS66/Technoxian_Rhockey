@@ -1,4 +1,5 @@
 #include <Bluepad32.h>
+#define LED_PIN 2
 
 // —————— PIN DEFINITIONS ——————
 int rmdpwm = 33;   // Right motor PWM
@@ -22,8 +23,6 @@ int joystickDeadzone = 30;  // smaller deadzone for more control
 float turnSensitivity = 0.6;
 
 
-
-
 // —————— BLUPAD32 GAMEPAD ——————
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
 
@@ -38,7 +37,7 @@ void onConnectedController(ControllerPtr ctl) {
     Serial.println("CALLBACK: No empty slot for new controller");
 }
 
-// Function declaration
+// Function declaration so that it wont throw error on compilation
 void setMotorSpeeds(int leftSpeed, int rightSpeed);
 
 
@@ -55,22 +54,24 @@ void onDisconnectedController(ControllerPtr ctl) {
 
 
 // Debug print
+// Debug print
 void dumpGamepad(ControllerPtr ctl) {
     Serial.printf(
-        "idx=%d, axis L: %4d, %4d, throttle: %4d, brake: %4d\n",
+        "idx=%d, axis L: %4d, %4d, throttle: %4d, brake: %4d, axis R: %4d, %4d, buttons: 0x%04X\n",
         ctl->index(), ctl->axisX(), ctl->axisY(),
-        ctl->throttle(), ctl->brake()
+        ctl->throttle(), ctl->brake(),ctl->axisRX(),ctl->axisRY(), ctl->buttons()
     );
 }
 
 void processGamepad(ControllerPtr ctl) {
     float yAxis = (float)(ctl->axisY());
-    float xAxis = (float)(ctl->axisX());
+    float xAxis = (float)(ctl->axisRX());
 
     int accel = ctl->throttle();  // 0–1023
     int brake = ctl->brake();     // 0–1023
-    bool pturn = ctl->buttons() & 0x0004;
-bool fakeShot = ctl->buttons() & 0x0008;  // Traingle button for fakeshot(ended up being emote :()
+    bool ccwpturn = ctl->buttons() & 0x0004; //pturn in the CCW direction by ▢ (in PS4) and X (in XBox)
+    bool cwpturn = ctl->buttons() & 0x0002; //pturn in the CW direction by O (in PS4) and B (in XBox)
+    bool fakeShot = ctl->buttons() & 0x0008;  // Traingle button for fakeshot(ended up being emote :()
 
 
     // Emergency stop check (example: both shoulder buttons)
@@ -81,28 +82,46 @@ bool fakeShot = ctl->buttons() & 0x0008;  // Traingle button for fakeshot(ended 
     }
 
 
-    if (pturn) {
-        // point turn
-        int target = min(maxSpeed / 2, currentSpeed + speedChangeRate);
+    if (ccwpturn) {
+        // ccw point turn
+        int target = min(int(maxSpeed * 0.6), currentSpeed + speedChangeRate);
         currentSpeed += (currentSpeed < target) ? speedChangeRate : -speedChangeRate;
-        setMotorSpeeds(currentSpeed, -currentSpeed);
-    } else if (fakeShot) { //emote 
-        setMotorSpeeds(200, 200);   // Quick forward
+        setMotorSpeeds(currentSpeed, -currentSpeed);}
+    else if(cwpturn){
+        // cw point turn
+        int target = min(int(maxSpeed * 0.6), currentSpeed + speedChangeRate);
+        currentSpeed += (currentSpeed < target) ? speedChangeRate : -speedChangeRate;
+        setMotorSpeeds(-currentSpeed, currentSpeed);
+    }
+    else if (fakeShot) { //emote 
+
+        digitalWrite(LED_PIN, LOW);
+        delay(20);  
+        setMotorSpeeds(200, 200);        // Quick forward
+        digitalWrite(LED_PIN, HIGH);  
         delay(200);
         setMotorSpeeds(0, 0);       // Sudden stop
+        digitalWrite(LED_PIN, LOW);
         delay(50);
+        digitalWrite(LED_PIN, HIGH); 
         setMotorSpeeds(-100, 150);  // Quick turn
         delay(350);
-        setMotorSpeeds(100,-150) ;   // back to previous turn
+        digitalWrite(LED_PIN, LOW);
+        setMotorSpeeds(100,-150) ;      // back to previous turn   
         delay(350);
+        digitalWrite(LED_PIN, HIGH);
         setMotorSpeeds(-100, 150);  // Quick turn
         delay(350);
+        digitalWrite(LED_PIN, LOW);
         setMotorSpeeds(100,-150) ;   // back to previous turn
         delay(350);
+        digitalWrite(LED_PIN, HIGH);
         setMotorSpeeds(0,0);
         delay(50);
+        digitalWrite(LED_PIN, LOW);
         setMotorSpeeds(200, 200);   // Continue forward
-    } else {
+    }
+    else {
         // deadzones
         if (abs(yAxis) < joystickDeadzone) yAxis = 0;
         if (abs(xAxis) < joystickDeadzone) xAxis = 0;
@@ -127,7 +146,7 @@ bool fakeShot = ctl->buttons() & 0x0008;  // Traingle button for fakeshot(ended 
         } else if (brake > 25) {
             int brk = map(brake, 0, 1023, 0, baseSpeed);
             int tgt = max(baseSpeed - brk, 0);
-            currentSpeed = max(currentSpeed - speedChangeRate * 2, tgt);
+            currentSpeed = max(int((currentSpeed - speedChangeRate )*1.6), tgt);
         } else {
             if (currentSpeed < baseSpeed) currentSpeed = min(currentSpeed + speedChangeRate, baseSpeed);
             else if (currentSpeed > baseSpeed) currentSpeed = max(currentSpeed - speedChangeRate, baseSpeed);
@@ -163,7 +182,8 @@ void setup() {
     Serial.printf("BD Addr: %02X:%02X:%02X:%02X:%02X:%02X\n",
                   bd[0], bd[1], bd[2], bd[3], bd[4], bd[5]);
 
-
+    //led blink with emote
+    pinMode(LED_PIN, OUTPUT); 
 
     // PWM channels
     ledcSetup(channelL, freq, res);
