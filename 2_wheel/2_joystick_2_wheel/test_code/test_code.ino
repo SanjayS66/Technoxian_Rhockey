@@ -2,10 +2,10 @@
 #define LED_PIN 2
 
 // —————— PIN DEFINITIONS ——————
-int rmdpwm = 33;   // Right motor PWM
-int rmddir = 32;   // Right motor DIR
-int lmdpwm = 13;   // Left  motor PWM
-int lmddir = 14;   // Left  motor DIR
+int rmdpwm = 13;   // Right motor PWM
+int rmddir =14;   // Right motor DIR
+int lmdpwm = 19;   // Left  motor PWM
+int lmddir = 18;   // Left  motor DIR
 
 // —————— PWM CONFIG ——————
 int freq       = 5000;  // PWM frequency
@@ -18,7 +18,7 @@ int max_pwm    = 255;   // absolute PWM limit
 int maxSpeed        = 255;  // maps to “full throttle”
 int baseSpeed       = 90;   // default cruising speed
 int currentSpeed    = baseSpeed;
-int speedChangeRate = 4;    // ramp up/down step
+int speedChangeRate = 4;    // The code's loop part runs almost every ms.. so set the speed changerate accordingly to prevent jerking
 int joystickDeadzone = 30;  // smaller deadzone for more control
 float turnSensitivity = 0.6;
 
@@ -63,8 +63,9 @@ void dumpGamepad(ControllerPtr ctl) {
     );
 }
 
+//main differential drive logic
 void processGamepad(ControllerPtr ctl) {
-    float yAxis = (float)(ctl->axisY());
+    float yAxis = (float)(ctl->axisY());       //joystick values
     float xAxis = (float)(ctl->axisRX());
 
     int accel = ctl->throttle();  // 0–1023
@@ -140,10 +141,10 @@ void processGamepad(ControllerPtr ctl) {
         xAxis *= turnSensitivity;
 
         // throttle/brake overrides
-        if (accel > 25) {
+        if (accel > 50) {
             int tgt = map(accel, 0, 1023, baseSpeed, maxSpeed);
             currentSpeed = min(currentSpeed + speedChangeRate, tgt);
-        } else if (brake > 25) {
+        } else if (brake > 50) {
             int brk = map(brake, 0, 1023, 0, baseSpeed);
             int tgt = max(baseSpeed - brk, 0);
             currentSpeed = max(int((currentSpeed - speedChangeRate )*1.6), tgt);
@@ -188,6 +189,7 @@ void setup() {
     // PWM channels
     ledcSetup(channelL, freq, res);
     ledcSetup(channelR, freq, res);
+    
     ledcAttachPin(lmdpwm, channelL);
     ledcAttachPin(rmdpwm, channelR);
 
