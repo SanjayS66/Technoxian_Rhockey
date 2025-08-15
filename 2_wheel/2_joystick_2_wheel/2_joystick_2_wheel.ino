@@ -2,13 +2,13 @@
 #define LED_PIN 2
 
 // —————— PIN DEFINITIONS ——————
-int rmdpwm = 13;   // Right motor PWM
-int rmddir =14;   // Right motor DIR
-int lmdpwm = 19;   // Left  motor PWM
-int lmddir = 18;   // Left  motor DIR
+int rmdpwm = 14;   // Right motor PWM
+int rmddir =13;   // Right motor DIR
+int lmdpwm = 18;   // Left  motor PWM
+int lmddir = 19;   // Left  motor DIR
 
 // —————— PWM CONFIG ——————
-int freq       = 5000;  // PWM frequency
+int freq       = 16000;  // PWM frequency
 int res        = 8;     // 8‑bit resolution (0–255)
 int channelR   = 0;     // right PWM channel
 int channelL   = 1;     // left  PWM channel
@@ -19,7 +19,7 @@ int maxSpeed        = 255;  // maps to “full throttle”
 int baseSpeed       = 90;   // default cruising speed
 int currentSpeed    = baseSpeed;
 int speedChangeRate = 4;    // The code's loop part runs almost every ms.. so set the speed changerate accordingly to prevent jerking
-int joystickDeadzone = 30;  // smaller deadzone for more control
+int joystickDeadzone = 70;  // smaller deadzone for more control
 float turnSensitivity = 0.6;
 
 
@@ -94,34 +94,34 @@ void processGamepad(ControllerPtr ctl) {
         currentSpeed += (currentSpeed < target) ? speedChangeRate : -speedChangeRate;
         setMotorSpeeds(-currentSpeed, currentSpeed);
     }
-    else if (fakeShot) { //emote 
+    // else if (fakeShot) { //emote 
 
-        digitalWrite(LED_PIN, LOW);
-        delay(20);  
-        setMotorSpeeds(200, 200);        // Quick forward
-        digitalWrite(LED_PIN, HIGH);  
-        delay(200);
-        setMotorSpeeds(0, 0);       // Sudden stop
-        digitalWrite(LED_PIN, LOW);
-        delay(50);
-        digitalWrite(LED_PIN, HIGH); 
-        setMotorSpeeds(-100, 150);  // Quick turn
-        delay(350);
-        digitalWrite(LED_PIN, LOW);
-        setMotorSpeeds(100,-150) ;      // back to previous turn   
-        delay(350);
-        digitalWrite(LED_PIN, HIGH);
-        setMotorSpeeds(-100, 150);  // Quick turn
-        delay(350);
-        digitalWrite(LED_PIN, LOW);
-        setMotorSpeeds(100,-150) ;   // back to previous turn
-        delay(350);
-        digitalWrite(LED_PIN, HIGH);
-        setMotorSpeeds(0,0);
-        delay(50);
-        digitalWrite(LED_PIN, LOW);
-        setMotorSpeeds(200, 200);   // Continue forward
-    }
+    //     digitalWrite(LED_PIN, LOW);
+    //     delay(20);  
+    //     setMotorSpeeds(200, 200);        // Quick forward
+    //     digitalWrite(LED_PIN, HIGH);  
+    //     delay(200);
+    //     setMotorSpeeds(0, 0);       // Sudden stop
+    //     digitalWrite(LED_PIN, LOW);
+    //     delay(50);
+    //     digitalWrite(LED_PIN, HIGH); 
+    //     setMotorSpeeds(-100, 150);  // Quick turn
+    //     delay(350);
+    //     digitalWrite(LED_PIN, LOW);
+    //     setMotorSpeeds(100,-150) ;      // back to previous turn   
+    //     delay(350);
+    //     digitalWrite(LED_PIN, HIGH);
+    //     setMotorSpeeds(-100, 150);  // Quick turn
+    //     delay(350);
+    //     digitalWrite(LED_PIN, LOW);
+    //     setMotorSpeeds(100,-150) ;   // back to previous turn
+    //     delay(350);
+    //     digitalWrite(LED_PIN, HIGH);
+    //     setMotorSpeeds(0,0);
+    //     delay(50);
+    //     digitalWrite(LED_PIN, LOW);
+    //     setMotorSpeeds(200, 200);   // Continue forward
+    // }
     else {
         // deadzones
         if (abs(yAxis) < joystickDeadzone) yAxis = 0;
@@ -204,15 +204,38 @@ void setup() {
 }
 
 void setMotorSpeeds(int leftSpeed, int rightSpeed) {
-    int pwmL = constrain(abs(leftSpeed), 0, max_pwm);
-    int pwmR = constrain(abs(rightSpeed), 0, max_pwm);
+    static int lastLeftSpeed = 0;
+    static int lastRightSpeed = 0;
 
-    ledcWrite(channelL, pwmL);
-    ledcWrite(channelR, pwmR);
+    // Detect direction change
+    bool leftDirChanged = (leftSpeed != 0 && (lastLeftSpeed * leftSpeed < 0));
+    bool rightDirChanged = (rightSpeed != 0 && (lastRightSpeed * rightSpeed < 0));
 
+    if (leftDirChanged || rightDirChanged) {
+        ledcWrite(channelL, 0);
+        ledcWrite(channelR, 0);
+        delay(150); // allow current to decay
+    }
+
+    // Constrain to absolute range
+    leftSpeed = constrain(leftSpeed, -max_pwm, max_pwm);
+    rightSpeed = constrain(rightSpeed, -max_pwm, max_pwm);
+    // Convert 0–255 to 20–240 range (8%–94%) //for the smartelex 15d motor driver which accepts pwm in this range only for some reason     int pwmL = map(abs(leftSpeed), 0, 255, 20, 240);
+    int pwmR = map(abs(rightSpeed), 0, 255, 20, 240);
+    int pwmL = map(abs(rightSpeed), 0, 255, 20, 240);
+
+    // Write PWM
+    ledcWrite(channelL, (leftSpeed == 0) ? 0 : pwmL);
+    ledcWrite(channelR, (rightSpeed == 0) ? 0 : pwmR);
+
+    // Direction control
     digitalWrite(lmddir, leftSpeed >= 0 ? LOW : HIGH);
     digitalWrite(rmddir, rightSpeed >= 0 ? LOW : HIGH);
+
+    lastLeftSpeed = leftSpeed;
+    lastRightSpeed = rightSpeed;
 }
+
 
 void loop() {
     if (BP32.update()) {

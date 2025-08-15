@@ -1,41 +1,37 @@
 #include <Bluepad32.h>
+#define LED_PIN 2
 
-int rmdpwm1 = 17;
-int rmdpwm2 = 4;
-int rmddir1 = 5;
-int rmddir2 = 16;
-int lmdpwm1 = 21;
-int lmdpwm2 = 1;
-int lmddir1 = 19;
-int lmddir2 = 3;
- 
+// —————— PIN DEFINITIONS ——————
+int rmdpwm = 19;   // Right motor PWM
+int rmddir =33;   // Right motor DIR
+int lmdpwm = 32;   // Left  motor PWM
+int lmddir = 18;   // Left  motor DIR
 
-//PWM VARIABLES *if you are using ledc functio for custom pwm*
-int freq = 5000;           // PWM frequency 
-int res = 8;        // 8-bit resolution (0-255)
+// —————— PWM CONFIG ——————
+int freq       = 16000;  // PWM frequency
+int res        = 8;     // 8‑bit resolution (0–255)
 
-// PWM channel assignments(timer that helps generates pwm signal)
-int channelR = 0;        // PWM channel for right motors
-int channelL = 1;        // PWM channel for left motors
-int max_pwm = 255;
+//______PWM CHANNEL ASSIGNMENT_________
+int channelR   = 0;     // right PWM channel
+int channelL   = 1;     // left  PWM channel
+int max_pwm    = 255;   // absolute PWM limit
 
-//speed params
-int maxSpeed = 255;
-int baseSpeed = 90;
-int currentSpeed = baseSpeed;
-int speedChangeRate = 4;
-int joystickDeadzone = 50; 
-float turnSensitivity = 0.6 ;
+// —————— SPEED CONTROL ——————
+int maxSpeed        = 255;  // maps to “full throttle”
+int baseSpeed       = 90;   // default cruising speed
+int currentSpeed    = baseSpeed;
+int speedChangeRate = 4;    // The code's loop part runs almost every ms.. so set the speed changerate accordingly to prevent jerking
+int joystickDeadzone = 50;  // smaller deadzone for more control
+float turnSensitivity = 0.6;
 
-//******************CODE FROM EXAMPLE SKETCH(NOTHING TO CHANGE)*********************
+
+// —————— BLUPAD32 GAMEPAD ——————
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
 
-// This callback gets called any time a new gamepad is connected.
-// Up to 4 gamepads can be connected at the same time.
 void onConnectedController(ControllerPtr ctl) {
     bool foundEmptySlot = false;
 // for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-     for (int i = 0; i < 1; i++) {                             //to rstrct maximum connected controllers to 1
+     for (int i = 0; i < 1; i++) {                             //to restrict maximum connected controllers to 1
         if (myControllers[i] == nullptr) {
             Serial.printf("CALLBACK: Controller is connected, index=%d\n", i);
             // Additionally, you can get certain gamepad properties like:
@@ -53,9 +49,9 @@ void onConnectedController(ControllerPtr ctl) {
     }
 }
 
-
 // Function declaration so that it wont throw error on compilation
 void setMotorSpeeds(int leftSpeed, int rightSpeed);
+
 
 
 void onDisconnectedController(ControllerPtr ctl) {
@@ -76,29 +72,21 @@ void onDisconnectedController(ControllerPtr ctl) {
     }
 }
 
-//**********************PRINT INPUT VALUES ON SERIAL MONITOR**********************
 
+//**********************PRINT INPUT VALUES ON SERIAL MONITOR**********************
+// Debug print
+// Debug print
 void dumpGamepad(ControllerPtr ctl) {
     Serial.printf(
-        "idx=%d, dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, %4d, brake: %4d, throttle: %4d, "
-        "misc: 0x%02x,\n",
-        ctl->index(),        // Controller Index
-        ctl->dpad(),         // D-pad
-        ctl->buttons(),      // bitmask of pressed buttons
-        ctl->axisX(),        // (-511 - 512) left X Axis
-        ctl->axisY(),        // (-511 - 512) left Y axis
-        ctl->axisRX(),       // (-511 - 512) right X axis
-        ctl->axisRY(),       // (-511 - 512) right Y axis
-        ctl->brake(),        // (0 - 1023): brake button
-        ctl->throttle(),     // (0 - 1023): throttle (AKA gas) button
-        ctl->miscButtons()  // bitmask of pressed "misc" buttons
-
-    ); 
+        "idx=%d, axis L: %4d, %4d, throttle: %4d, brake: %4d, axis R: %4d, %4d, buttons: 0x%04X\n",
+        ctl->index(), ctl->axisX(), ctl->axisY(),
+        ctl->throttle(), ctl->brake(),ctl->axisRX(),ctl->axisRY(), ctl->buttons()
+    );
 }
 
-
+//main differential drive logic
 void processGamepad(ControllerPtr ctl) {
-    float yAxis = (float)(ctl->axisY());
+    float yAxis = (float)(ctl->axisY());       //joystick values
     float xAxis = (float)(ctl->axisRX());
 
     int accel = ctl->throttle();  // 0–1023
@@ -109,9 +97,8 @@ void processGamepad(ControllerPtr ctl) {
 
     if (brake>150){
         accel = 0;
-        Serial.printf("Brakes activated  brake : %d      accel : %d   ",brake,accel);    
+        Serial.printf("Brakes activated  \nbrake : %d      accel : %d   ",brake,accel);    
     }
-
     // Emergency stop check (example: both shoulder buttons)
     if ((ctl->buttons() & 0x0030) == 0x0030) {  // L1 + R1 pressed
         setMotorSpeeds(0, 0);
@@ -131,6 +118,34 @@ void processGamepad(ControllerPtr ctl) {
         currentSpeed += (currentSpeed < target) ? speedChangeRate : -speedChangeRate;
         setMotorSpeeds(-currentSpeed, currentSpeed);
     }
+    // else if (fakeShot) { //emote 
+
+    //     digitalWrite(LED_PIN, LOW);
+    //     delay(20);  
+    //     setMotorSpeeds(200, 200);        // Quick forward
+    //     digitalWrite(LED_PIN, HIGH);  
+    //     delay(200);
+    //     setMotorSpeeds(0, 0);       // Sudden stop
+    //     digitalWrite(LED_PIN, LOW);
+    //     delay(50);
+    //     digitalWrite(LED_PIN, HIGH); 
+    //     setMotorSpeeds(-100, 150);  // Quick turn
+    //     delay(350);
+    //     digitalWrite(LED_PIN, LOW);
+    //     setMotorSpeeds(100,-150) ;      // back to previous turn   
+    //     delay(350);
+    //     digitalWrite(LED_PIN, HIGH);
+    //     setMotorSpeeds(-100, 150);  // Quick turn
+    //     delay(350);
+    //     digitalWrite(LED_PIN, LOW);
+    //     setMotorSpeeds(100,-150) ;   // back to previous turn
+    //     delay(350);
+    //     digitalWrite(LED_PIN, HIGH);
+    //     setMotorSpeeds(0,0);
+    //     delay(50);
+    //     digitalWrite(LED_PIN, LOW);
+    //     setMotorSpeeds(200, 200);   // Continue forward
+    // }
     else {
         // deadzones
         if (abs(yAxis) < joystickDeadzone) yAxis = 0;
@@ -154,9 +169,13 @@ void processGamepad(ControllerPtr ctl) {
             int tgt = map(accel, 0, 1023, baseSpeed, maxSpeed);
             currentSpeed = min(currentSpeed + speedChangeRate, tgt);
         } else if (brake > 50) {
+
             int brk = map(brake, 0, 1023, 0, baseSpeed);
             int tgt = max(baseSpeed - brk, 0);
-            currentSpeed = max(int((currentSpeed - speedChangeRate )), tgt);
+            currentSpeed = max(int(currentSpeed - speedChangeRate ), tgt);
+            // if (abs(currentSpeed) < speedChangeRate) currentSpeed = 0;
+
+            
         } else {
             if (currentSpeed < baseSpeed) currentSpeed = min(currentSpeed + speedChangeRate, baseSpeed);
             else if (currentSpeed > baseSpeed) currentSpeed = max(currentSpeed - speedChangeRate, baseSpeed);
@@ -178,76 +197,51 @@ void processGamepad(ControllerPtr ctl) {
     dumpGamepad(ctl);
 }
 
-
 void processControllers() {
-    for (auto myController : myControllers) {
-        if (myController && myController->isConnected() && myController->hasData()) {
-            if (myController->isGamepad()) {
-                processGamepad(myController);
-            } else {
-                Serial.println("Unsupported controller");
-            }
+    for (auto ctl : myControllers) {
+        if (ctl && ctl->isConnected() && ctl->hasData()) {   //try removing has data 
+            if (ctl->isGamepad()) processGamepad(ctl);
         }
     }
 }
 
-// Arduino setup function. Runs in CPU 1
 void setup() {
-
     Serial.begin(115200);
     Serial.printf("Firmware: %s\n", BP32.firmwareVersion());
-    const uint8_t* addr = BP32.localBdAddress();
-    Serial.printf("BD Addr: %2X:%2X:%2X:%2X:%2X:%2X\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+    const uint8_t* bd = BP32.localBdAddress();
+    Serial.printf("BD Addr: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  bd[0], bd[1], bd[2], bd[3], bd[4], bd[5]);
 
-      // Set up PWM channels
-    ledcSetup(channelL, freq, res);   //(channel(0-15),freq,res)
+    //led blink with emote
+    pinMode(LED_PIN, OUTPUT); 
+
+    // PWM channels
+    ledcSetup(channelL, freq, res);
     ledcSetup(channelR, freq, res);
+    
+    ledcAttachPin(lmdpwm, channelL);
+    ledcAttachPin(rmdpwm, channelR); 
 
-  
-    // Attach PWM channels to pins
-    ledcAttachPin(rmdpwm1,channelR);    
-    ledcAttachPin(rmdpwm2,channelR);
-    ledcAttachPin(lmdpwm1,channelL);
-    ledcAttachPin(lmdpwm2, channelL);
+    pinMode(lmddir, OUTPUT);
+    pinMode(rmddir, OUTPUT);
 
-
-    pinMode(rmddir1,OUTPUT);
-    pinMode(rmddir2,OUTPUT);
-    pinMode(lmddir1,OUTPUT);
-    pinMode(lmddir2,OUTPUT);
-
-
-
-    // Initialize motors to stopped state
     setMotorSpeeds(0, 0);
 
-
-    // Setup the Bluepad32 callbacks
     BP32.setup(&onConnectedController, &onDisconnectedController);
     BP32.forgetBluetoothKeys();
     BP32.enableVirtualDevice(false);
 }
 
-
 void setMotorSpeeds(int leftSpeed, int rightSpeed) {
-  
-  int pwmL = constrain(abs(leftSpeed), 0, max_pwm);
-  int pwmR = constrain(abs(rightSpeed), 0, max_pwm);
 
-      // Set PWM values for motor drivers
-    ledcWrite(channelL, pwmL);
-    ledcWrite(channelR, pwmR);
-    
-    // Set direction pins for left side
-    if (leftSpeed >= 0) {
-        digitalWrite(lmddir1, HIGH);
-        digitalWrite(lmddir2, HIGH);
-    } else {
-        digitalWrite(lmddir1, LOW);
-        digitalWrite(lmddir2, LOW);
-    }
-    
-    // Set direction pins for right side
+
+    // Constrain to absolute range
+    leftSpeed = constrain(leftSpeed, -max_pwm, max_pwm);
+    rightSpeed = constrain(rightSpeed, -max_pwm, max_pwm);
+    // Convert 0–255 to 20–240 range (8%–94%) for the smartelex 15d motor driver which accepts pwm in this range only for some reason     
+    int pwmR = map(abs(rightSpeed), 0, 255, 20, 240);
+    int pwmL = map(abs(leftSpeed), 0, 255, 20, 240);
+
     // Write PWM
     ledcWrite(channelL, (leftSpeed == 0) ? 0 : pwmL);
     ledcWrite(channelR, (rightSpeed == 0) ? 0 : pwmR);
@@ -255,19 +249,14 @@ void setMotorSpeeds(int leftSpeed, int rightSpeed) {
     // Direction control
     digitalWrite(lmddir, leftSpeed >= 0 ? LOW : HIGH);
     digitalWrite(rmddir, rightSpeed >= 0 ? LOW : HIGH);
-    Serial.printf("Left: %d, Right: %d\n", leftSpeed, rightSpeed);
-
 
 }
 
 
-// Arduino loop function. Runs in CPU 1.
 void loop() {
-    // This call fetches all the controllers' data.
-    // Call this function in your main loop.
-    bool dataUpdated = BP32.update();
-    if (dataUpdated)
+    if (BP32.update()) {
         processControllers();
-
-    vTaskDelay(1) ;
+    }
+    vTaskDelay(1);
 }
+
