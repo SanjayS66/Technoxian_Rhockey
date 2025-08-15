@@ -15,15 +15,15 @@ int channelL   = 1;     // left  PWM channel
 int max_pwm    = 255;   // absolute PWM limit
 
 // —————— SPEED CONTROL ——————
-int maxSpeed        = 255;  // maps to “full throttle”
+int maxSpeed        = 255;  // speed for “full throttle”
 int baseSpeed       = 90;   // default cruising speed
-int currentSpeed    = baseSpeed;
-int speedChangeRate = 4;    // The code's loop part runs almost every ms.. so set the speed changerate accordingly to prevent jerking
-int joystickDeadzone = 70;  // smaller deadzone for more control
-float turnSensitivity = 0.6;
+int currentSpeed    = baseSpeed;   //variable to store calculated speed based on joystick+throttle input to be passed to set motor function
+int speedChangeRate = 4;    // speed changes over every loop at this rate to prevent jerking
+int joystickDeadzone = 70;  //to account for the error in the controller joystick
+float turnSensitivity = 0.6;   //for better control. without this bot starts taking pturns for small x-input
 
 
-// —————— BLUPAD32 GAMEPAD ——————
+// —————— BLUPAD32 GAMEPAD(nothing much to change) ——————
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
 
 void onConnectedController(ControllerPtr ctl) {
@@ -46,15 +46,14 @@ void onDisconnectedController(ControllerPtr ctl) {
         if (myControllers[i] == ctl) {
             Serial.printf("CALLBACK: Controller disconnected from index=%d\n", i);
             myControllers[i] = nullptr;
-            setMotorSpeeds(0,0);
+            setMotorSpeeds(0,0);  //so bot doesnt keep going when controller gets disconnected
             return;
         }
     }
 }
 
 
-// Debug print
-// Debug print
+//Printing values on serial monitor for debuging
 void dumpGamepad(ControllerPtr ctl) {
     Serial.printf(
         "idx=%d, axis L: %4d, %4d, throttle: %4d, brake: %4d, axis R: %4d, %4d, buttons: 0x%04X\n",
@@ -74,6 +73,11 @@ void processGamepad(ControllerPtr ctl) {
     bool cwpturn = ctl->buttons() & 0x0002; //pturn in the CW direction by O (in PS4) and B (in XBox)
     bool fakeShot = ctl->buttons() & 0x0008;  // Traingle button for fakeshot(ended up being emote :()
 
+    // so that brake can overwrite accelerate value
+    if (brake>150){
+        accel = 0;
+        Serial.printf("Brakes activated  brake : %d      accel : %d   ",brake,accel);    
+    }
 
     // Emergency stop check (example: both shoulder buttons)
     if ((ctl->buttons() & 0x0030) == 0x0030) {  // L1 + R1 pressed
@@ -128,7 +132,6 @@ void processGamepad(ControllerPtr ctl) {
         if (abs(xAxis) < joystickDeadzone) xAxis = 0;
 
 
-        //*test part*
         // Normalize to -1.0 to +1.0 range (adjust 512 based on your controller's range)
         yAxis = yAxis / 512.0;
         xAxis = xAxis / 512.0;
@@ -204,18 +207,11 @@ void setup() {
 }
 
 void setMotorSpeeds(int leftSpeed, int rightSpeed) {
-    static int lastLeftSpeed = 0;
-    static int lastRightSpeed = 0;
 
     // Detect direction change
     bool leftDirChanged = (leftSpeed != 0 && (lastLeftSpeed * leftSpeed < 0));
     bool rightDirChanged = (rightSpeed != 0 && (lastRightSpeed * rightSpeed < 0));
 
-    if (leftDirChanged || rightDirChanged) {
-        ledcWrite(channelL, 0);
-        ledcWrite(channelR, 0);
-        delay(150); // allow current to decay
-    }
 
     // Constrain to absolute range
     leftSpeed = constrain(leftSpeed, -max_pwm, max_pwm);
@@ -232,8 +228,7 @@ void setMotorSpeeds(int leftSpeed, int rightSpeed) {
     digitalWrite(lmddir, leftSpeed >= 0 ? LOW : HIGH);
     digitalWrite(rmddir, rightSpeed >= 0 ? LOW : HIGH);
 
-    lastLeftSpeed = leftSpeed;
-    lastRightSpeed = rightSpeed;
+    Serial.printf("Left: %d, Right: %d\n", leftSpeed, rightSpeed);
 }
 
 

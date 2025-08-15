@@ -1,13 +1,14 @@
 #include <Bluepad32.h>
 
-int rmdpwm1 = 17;
-int rmdpwm2 = 4;
-int rmddir1 = 5;
-int rmddir2 = 16;
-int lmdpwm1 = 21;
-int lmdpwm2 = 1;
-int lmddir1 = 19;
-int lmddir2 = 3;
+// —————— PIN DEFINITIONS ——————
+int rmdpwm1 = 17;    //Right motor 1 pwm
+int rmdpwm2 = 4;     //Right motor 2 pwm
+int rmddir1 = 5;     //Right motor 1 direction
+int rmddir2 = 16;    //Right motor 2 direction
+int lmdpwm1 = 21;    //Left motor 1 pwm
+int lmdpwm2 = 1;     //Left motor 2 pwm
+int lmddir1 = 19;    //Left motor 1 direction
+int lmddir2 = 3;     //Left motor 2 direction
  
 
 //PWM VARIABLES *if you are using ledc functio for custom pwm*
@@ -20,18 +21,18 @@ int channelL = 1;        // PWM channel for left motors
 int max_pwm = 255;
 
 //speed params
-int maxSpeed = 255;
-int baseSpeed = 90;
-int currentSpeed = baseSpeed;
-int speedChangeRate = 4;
-int joystickDeadzone = 50; 
-float turnSensitivity = 0.6 ;
+int maxSpeed = 255;     //speed for "full throttle"
+int baseSpeed = 90;     //base cruising speed
+int currentSpeed = baseSpeed;    //variable to store calculated speed based on joystick+throttle input to be passed to set motor function
+int speedChangeRate = 4;    // speed changes over every loop at this rate to prevent jerking
+int joystickDeadzone = 50;    //to account for the error in the controller joystick
+float turnSensitivity = 0.6 ;   //for better control. without this bot starts taking pturns for small x-input
 
 //******************CODE FROM EXAMPLE SKETCH(NOTHING TO CHANGE)*********************
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
 
 // This callback gets called any time a new gamepad is connected.
-// Up to 4 gamepads can be connected at the same time.
+// Up to 4 gamepads can be connected at the same time.but estricted to 1 controller at a time
 void onConnectedController(ControllerPtr ctl) {
     bool foundEmptySlot = false;
 // for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
@@ -57,26 +58,18 @@ void onConnectedController(ControllerPtr ctl) {
 // Function declaration so that it wont throw error on compilation
 void setMotorSpeeds(int leftSpeed, int rightSpeed);
 
-
 void onDisconnectedController(ControllerPtr ctl) {
-    bool foundController = false;
-    // for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {   
-     for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
         if (myControllers[i] == ctl) {
             Serial.printf("CALLBACK: Controller disconnected from index=%d\n", i);
             myControllers[i] = nullptr;
-            foundController = true;
-            break;
-            setMotorSpeeds(0,0);
+            setMotorSpeeds(0,0);  //so bot doesnt keep going when controller gets disconnected
+            return;
         }
-    }
-
-    if (!foundController) {
-        Serial.println("CALLBACK: Controller disconnected, but not found in myControllers");
     }
 }
 
-//**********************PRINT INPUT VALUES ON SERIAL MONITOR**********************
+//Printing values on serial monitor for debuging
 
 void dumpGamepad(ControllerPtr ctl) {
     Serial.printf(
@@ -96,10 +89,10 @@ void dumpGamepad(ControllerPtr ctl) {
     ); 
 }
 
-
+//main differential drive logic
 void processGamepad(ControllerPtr ctl) {
-    float yAxis = (float)(ctl->axisY());
-    float xAxis = (float)(ctl->axisRX());
+    float yAxis = (float)(ctl->axisY());   //left joystick for forward & reverse
+    float xAxis = (float)(ctl->axisRX());  //right joystick for left & right
 
     int accel = ctl->throttle();  // 0–1023
     int brake = ctl->brake();     // 0–1023
@@ -107,6 +100,8 @@ void processGamepad(ControllerPtr ctl) {
     bool cwpturn = ctl->buttons() & 0x0002; //pturn in the CW direction by O (in PS4) and B (in XBox)
     bool fakeShot = ctl->buttons() & 0x0008;  // Traingle button for fakeshot(ended up being emote :()
 
+
+    // so that brake can overwrite accelerate value
     if (brake>150){
         accel = 0;
         Serial.printf("Brakes activated  brake : %d      accel : %d   ",brake,accel);    
@@ -137,7 +132,6 @@ void processGamepad(ControllerPtr ctl) {
         if (abs(xAxis) < joystickDeadzone) xAxis = 0;
 
 
-        //*test part*
         // Normalize to -1.0 to +1.0 range (adjust 512 based on your controller's range)
         yAxis = yAxis / 512.0;
         xAxis = xAxis / 512.0;
@@ -234,9 +228,6 @@ void setMotorSpeeds(int leftSpeed, int rightSpeed) {
   int pwmL = constrain(abs(leftSpeed), 0, max_pwm);
   int pwmR = constrain(abs(rightSpeed), 0, max_pwm);
 
-      // Set PWM values for motor drivers
-    ledcWrite(channelL, pwmL);
-    ledcWrite(channelR, pwmR);
     
     // Set direction pins for left side
     if (leftSpeed >= 0) {
@@ -246,15 +237,24 @@ void setMotorSpeeds(int leftSpeed, int rightSpeed) {
         digitalWrite(lmddir1, LOW);
         digitalWrite(lmddir2, LOW);
     }
-    
+
     // Set direction pins for right side
+    if (rightSpeed >= 0) {
+        digitalWrite(rmddir1, HIGH);
+        digitalWrite(rmddir2, HIGH);
+    } else {
+        digitalWrite(rmddir1, LOW);
+        digitalWrite(rmddir2, LOW);
+    }
+    
+
     // Write PWM
     ledcWrite(channelL, (leftSpeed == 0) ? 0 : pwmL);
     ledcWrite(channelR, (rightSpeed == 0) ? 0 : pwmR);
 
-    // Direction control
-    digitalWrite(lmddir, leftSpeed >= 0 ? LOW : HIGH);
-    digitalWrite(rmddir, rightSpeed >= 0 ? LOW : HIGH);
+    // // Direction control
+    // digitalWrite(lmddir, leftSpeed >= 0 ? LOW : HIGH);
+    // digitalWrite(rmddir, rightSpeed >= 0 ? LOW : HIGH);
     Serial.printf("Left: %d, Right: %d\n", leftSpeed, rightSpeed);
 
 
