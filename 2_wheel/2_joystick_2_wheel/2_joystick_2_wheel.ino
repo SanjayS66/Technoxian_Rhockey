@@ -2,10 +2,10 @@
 #define LED_PIN 2
 
 // —————— PIN DEFINITIONS ——————
-int rmdpwm = 14;   // Right motor PWM
-int rmddir =13;   // Right motor DIR
-int lmdpwm = 18;   // Left  motor PWM
-int lmddir = 19;   // Left  motor DIR
+int rmdpwm = 26;   // Right motor PWM
+int rmddir =25;   // Right motor DIR
+int lmdpwm = 33;   // Left  motor PWM
+int lmddir = 32;   // Left  motor DIR
 
 // —————— PWM CONFIG ——————
 int freq       = 16000;  // PWM frequency
@@ -208,17 +208,15 @@ void setup() {
 
 void setMotorSpeeds(int leftSpeed, int rightSpeed) {
 
-    // Detect direction change
-    bool leftDirChanged = (leftSpeed != 0 && (lastLeftSpeed * leftSpeed < 0));
-    bool rightDirChanged = (rightSpeed != 0 && (lastRightSpeed * rightSpeed < 0));
+
 
 
     // Constrain to absolute range
     leftSpeed = constrain(leftSpeed, -max_pwm, max_pwm);
     rightSpeed = constrain(rightSpeed, -max_pwm, max_pwm);
-    // Convert 0–255 to 20–240 range (8%–94%) //for the smartelex 15d motor driver which accepts pwm in this range only for some reason     int pwmL = map(abs(leftSpeed), 0, 255, 20, 240);
-    int pwmR = map(abs(rightSpeed), 0, 255, 20, 240);
-    int pwmL = map(abs(rightSpeed), 0, 255, 20, 240);
+    // Convert 0–255 to 20–240 range (8%–94%) //for the smartelex 15d motor driver which accepts pwm in this range only for some reason   
+    int pwmR = map(abs(rightSpeed), 0, 255, 0, 255);
+    int pwmL = map(abs(leftSpeed), 0, 255, 0, 255);
 
     // Write PWM
     ledcWrite(channelL, (leftSpeed == 0) ? 0 : pwmL);
