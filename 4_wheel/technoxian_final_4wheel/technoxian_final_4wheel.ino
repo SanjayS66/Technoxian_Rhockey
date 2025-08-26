@@ -26,7 +26,7 @@ int baseSpeed = 90;     //base cruising speed
 int currentSpeed = baseSpeed;    //variable to store calculated speed based on joystick+throttle input to be passed to set motor function
 int speedChangeRate = 4;    // speed changes over every loop at this rate to prevent jerking
 int joystickDeadzone = 50;    //to account for the error in the controller joystick
-float turnSensitivity = 0.6 ;   //for better control. without this bot starts taking pturns for small x-input
+float turnSensitivity = 0.4 ;   //for better control. without this bot starts taking pturns for small x-input
 
 //******************CODE FROM EXAMPLE SKETCH(NOTHING TO CHANGE)*********************
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
@@ -36,7 +36,7 @@ ControllerPtr myControllers[BP32_MAX_GAMEPADS];
 void onConnectedController(ControllerPtr ctl) {
     bool foundEmptySlot = false;
 // for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-     for (int i = 0; i < 1; i++) {                             //to rstrct maximum connected controllers to 1
+     for (int i = 0; i < 1; i++) {                             //to restrict maximum connected controllers to 1
         if (myControllers[i] == nullptr) {
             Serial.printf("CALLBACK: Controller is connected, index=%d\n", i);
             // Additionally, you can get certain gamepad properties like:
@@ -150,7 +150,7 @@ void processGamepad(ControllerPtr ctl) {
         } else if (brake > 50) {
             int brk = map(brake, 0, 1023, 0, baseSpeed);
             int tgt = max(baseSpeed - brk, 0);
-            currentSpeed = max(int((currentSpeed - speedChangeRate )), tgt);
+            currentSpeed = max(int((currentSpeed - speedChangeRate )*1.6), tgt);
         } else {
             if (currentSpeed < baseSpeed) currentSpeed = min(currentSpeed + speedChangeRate, baseSpeed);
             else if (currentSpeed > baseSpeed) currentSpeed = max(currentSpeed - speedChangeRate, baseSpeed);

@@ -1,0 +1,19 @@
+HockeyBot Inventory:
+
+Bot chasis : 4
+ESP32 : 5
+MDD10A : 
+SmartElex 15D :
+Bucks : 
+Veroboard :
+Controllers : PS4 controllers : 3
+              Xbox controller : 2
+Wheels :
+Castor Wheels : 
+Batteries : 12 V :
+            24 V :
+Motors :  12 V :
+          24 V :
+Elec Case :
+Bat grip
+Fewiquick 

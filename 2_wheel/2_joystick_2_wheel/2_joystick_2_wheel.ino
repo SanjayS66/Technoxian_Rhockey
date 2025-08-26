@@ -20,21 +20,33 @@ int baseSpeed       = 90;   // default cruising speed
 int currentSpeed    = baseSpeed;   //variable to store calculated speed based on joystick+throttle input to be passed to set motor function
 int speedChangeRate = 4;    // speed changes over every loop at this rate to prevent jerking
 int joystickDeadzone = 70;  //to account for the error in the controller joystick
-float turnSensitivity = 0.6;   //for better control. without this bot starts taking pturns for small x-input
-
+float turnSensitivity = 0.4;   //for better control. without this bot starts taking pturns for small x-input
+                               //Change turn sensitivity for changing turning radius
 
 // —————— BLUPAD32 GAMEPAD(nothing much to change) ——————
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
 
+// This callback gets called any time a new gamepad is connected.
+// Up to 4 gamepads can be connected at the same time.but estricted to 1 controller at a time
 void onConnectedController(ControllerPtr ctl) {
-    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
+    bool foundEmptySlot = false;
+// for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
+     for (int i = 0; i < 1; i++) {                             //to restrict maximum connected controllers to 1
         if (myControllers[i] == nullptr) {
-            Serial.printf("CALLBACK: Controller connected, index=%d\n", i);
-            myControllers[i] = ctl;
-            return;
+            Serial.printf("CALLBACK: Controller is connected, index=%d\n", i);
+            // Additionally, you can get certain gamepad properties like:
+            // Model, VID, PID, BTAddr, flags, etc.
+            ControllerProperties properties = ctl->getProperties();
+            Serial.printf("Controller model: %s, VID=0x%04x, PID=0x%04x\n", ctl->getModelName().c_str(), properties.vendor_id,
+                           properties.product_id);
+            myControllers[i] = ctl;      //pointer to the controller
+            foundEmptySlot = true;
+            break;
         }
     }
-    Serial.println("CALLBACK: No empty slot for new controller");
+    if (!foundEmptySlot) {
+        Serial.println("CALLBACK: Controller connected, but could not found empty slot");
+    }
 }
 
 // Function declaration so that it wont throw error on compilation
@@ -42,7 +54,7 @@ void setMotorSpeeds(int leftSpeed, int rightSpeed);
 
 
 void onDisconnectedController(ControllerPtr ctl) {
-    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
+    for (int i = 0; i < 1; i++) {
         if (myControllers[i] == ctl) {
             Serial.printf("CALLBACK: Controller disconnected from index=%d\n", i);
             myControllers[i] = nullptr;
