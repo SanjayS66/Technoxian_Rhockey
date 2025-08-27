@@ -15,5 +15,6 @@ Batteries : 12 V :
 Motors :  12 V :
           24 V :
 Elec Case :
+Micro-USB Data Cables :
 Bat grip
 Fewiquick 

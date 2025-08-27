@@ -12,7 +12,7 @@ int lmddir2 = 3;     //Left motor 2 direction
  
 
 //PWM VARIABLES *if you are using ledc functio for custom pwm*
-int freq = 5000;           // PWM frequency 
+int freq = 15000;           // PWM frequency. Dont set to values >=20k which will cause motordriver to overheat
 int res = 8;        // 8-bit resolution (0-255)
 
 // PWM channel assignments(timer that helps generates pwm signal)
@@ -59,16 +59,22 @@ void onConnectedController(ControllerPtr ctl) {
 void setMotorSpeeds(int leftSpeed, int rightSpeed);
 
 void onDisconnectedController(ControllerPtr ctl) {
-    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
+    bool foundController = false;
+    // for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {   
+     for (int i = 0; i < 1; i++) {
         if (myControllers[i] == ctl) {
             Serial.printf("CALLBACK: Controller disconnected from index=%d\n", i);
             myControllers[i] = nullptr;
-            setMotorSpeeds(0,0);  //so bot doesnt keep going when controller gets disconnected
-            return;
+            foundController = true;
+            break;
+            setMotorSpeeds(0,0);
         }
     }
-}
 
+    if (!foundController) {
+        Serial.println("CALLBACK: Controller disconnected, but not found in myControllers");
+    }
+}
 //Printing values on serial monitor for debuging
 
 void dumpGamepad(ControllerPtr ctl) {
@@ -110,6 +116,7 @@ void processGamepad(ControllerPtr ctl) {
     // Emergency stop check (example: both shoulder buttons)
     if ((ctl->buttons() & 0x0030) == 0x0030) {  // L1 + R1 pressed
         setMotorSpeeds(0, 0);
+        currentSpeed = 0;
         Serial.println("EMERGENCY STOP ACTIVATED");
         return;
     }

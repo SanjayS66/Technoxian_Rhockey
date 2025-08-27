@@ -2,13 +2,13 @@
 #define LED_PIN 2
 
 // —————— PIN DEFINITIONS ——————
-int rmdpwm = 19;   // Right motor PWM
-int rmddir =33;   // Right motor DIR
-int lmdpwm = 32;   // Left  motor PWM
-int lmddir = 18;   // Left  motor DIR
+int rmdpwm = 26;   // Right motor PWM
+int rmddir =32;   // Right motor DIR
+int lmdpwm = 33;   // Left  motor PWM
+int lmddir = 25;   // Left  motor DIR
 
 // —————— PWM CONFIG ——————
-int freq       = 16000;  // PWM frequency
+int freq       = 15000;  // PWM frequency. Dont set to values >=20k which will cause motordriver to overheat
 int res        = 8;     // 8‑bit resolution (0–255)
 
 //______PWM CHANNEL ASSIGNMENT_________
@@ -62,8 +62,9 @@ void onDisconnectedController(ControllerPtr ctl) {
             Serial.printf("CALLBACK: Controller disconnected from index=%d\n", i);
             myControllers[i] = nullptr;
             foundController = true;
-            break;
             setMotorSpeeds(0,0);
+            break;
+            
         }
     }
 
@@ -102,6 +103,7 @@ void processGamepad(ControllerPtr ctl) {
     // Emergency stop check (example: both shoulder buttons)
     if ((ctl->buttons() & 0x0030) == 0x0030) {  // L1 + R1 pressed
         setMotorSpeeds(0, 0);
+        currentSpeed = 0;
         Serial.println("EMERGENCY STOP ACTIVATED");
         return;
     }
