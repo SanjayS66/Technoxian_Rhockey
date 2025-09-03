@@ -1,4 +1,6 @@
 #include <Bluepad32.h>
+#include <WiFi.h>        // only if you want to disable WiFi
+#include <esp_wifi.h>
 
 // —————— PIN DEFINITIONS ——————
 int rmdpwm1 = 17;    //Right motor 1 pwm
@@ -197,6 +199,14 @@ void processControllers() {
 void setup() {
 
     Serial.begin(115200);
+    //******test psrt for shutting down wifi********
+    // ---- Disable Wi-Fi ----
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    esp_wifi_stop();   // optional but ensures radio cleanup
+   //*************test part ends****************
+
+
     Serial.printf("Firmware: %s\n", BP32.firmwareVersion());
     const uint8_t* addr = BP32.localBdAddress();
     Serial.printf("BD Addr: %2X:%2X:%2X:%2X:%2X:%2X\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);

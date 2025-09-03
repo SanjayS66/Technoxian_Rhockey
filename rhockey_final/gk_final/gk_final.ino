@@ -16,11 +16,11 @@ int max_pwm    = 255;   // absolute PWM limit
 
 // —————— SPEED CONTROL ——————
 int maxSpeed        = 255;  // speed for “full throttle”
-int baseSpeed       = 90;   // default cruising speed
+int baseSpeed       = 150;   // default cruising speed
 int currentSpeed    = baseSpeed;   //variable to store calculated speed based on joystick+throttle input to be passed to set motor function
 int speedChangeRate = 4;    // speed changes over every loop at this rate to prevent jerking
 int joystickDeadzone = 70;  //to account for the error in the controller joystick
-float turnSensitivity = 0.4;   //for better control. without this bot starts taking pturns for small x-input
+float turnSensitivity = 0.55;   //for better control. without this bot starts taking pturns for small x-input
                                //Change turn sensitivity for changing turning radius
 
 // —————— BLUPAD32 GAMEPAD(nothing much to change) ——————
@@ -101,12 +101,12 @@ void processGamepad(ControllerPtr ctl) {
 
     if (ccwpturn) {
         // ccw point turn
-        int target = min(int(maxSpeed * 0.6), currentSpeed + speedChangeRate);
+        int target = min(int(maxSpeed), currentSpeed + speedChangeRate);
         currentSpeed += (currentSpeed < target) ? speedChangeRate : -speedChangeRate;
         setMotorSpeeds(currentSpeed, -currentSpeed);}
     else if(cwpturn){
         // cw point turn
-        int target = min(int(maxSpeed * 0.6), currentSpeed + speedChangeRate);
+        int target = min(int(maxSpeed), currentSpeed + speedChangeRate);
         currentSpeed += (currentSpeed < target) ? speedChangeRate : -speedChangeRate;
         setMotorSpeeds(-currentSpeed, currentSpeed);
     }
@@ -175,9 +175,9 @@ void processGamepad(ControllerPtr ctl) {
         int forward = (int)(yAxis * scale * maxSpeed);
         int turn = (int)(xAxis * scale * maxSpeed);
         
-        int leftSp  = constrain(forward - turn, -max_pwm, max_pwm);
-        int rightSp = constrain(forward + turn, -max_pwm, max_pwm);
-        setMotorSpeeds(leftSp, rightSp);
+        int leftSp  = constrain(forward + turn, -max_pwm, max_pwm);
+        int rightSp = constrain(forward - turn, -max_pwm, max_pwm);
+        setMotorSpeeds(leftSp, rightSp*0.94);        //final minute fix to make the bot go straighter even though the placement of motor is the real issue
     }
 
     dumpGamepad(ctl);
@@ -220,6 +220,9 @@ void setup() {
 
 void setMotorSpeeds(int leftSpeed, int rightSpeed) {
 
+
+
+
     // Constrain to absolute range
     leftSpeed = constrain(leftSpeed, -max_pwm, max_pwm);
     rightSpeed = constrain(rightSpeed, -max_pwm, max_pwm);
@@ -232,8 +235,8 @@ void setMotorSpeeds(int leftSpeed, int rightSpeed) {
     ledcWrite(channelR, (rightSpeed == 0) ? 0 : pwmR);
 
     // Direction control
-    digitalWrite(lmddir, leftSpeed >= 0 ? LOW : HIGH);
-    digitalWrite(rmddir, rightSpeed >= 0 ? LOW : HIGH);
+    digitalWrite(lmddir, leftSpeed >= 0 ? HIGH : LOW);
+    digitalWrite(rmddir, rightSpeed >= 0 ? HIGH : LOW);
 
     Serial.printf("Left: %d, Right: %d\n", leftSpeed, rightSpeed);
 }
@@ -245,4 +248,5 @@ void loop() {
     }
     vTaskDelay(1);
 }
+
 

@@ -4,6 +4,7 @@ Bot chasis : 4
 ESP32 : 5
 MDD10A : 
 SmartElex 15D :
+JST Connectors : 
 Bucks : 
 Veroboard :
 Controllers : PS4 controllers : 3

@@ -18,9 +18,9 @@ int max_pwm    = 255;   // absolute PWM limit
 int maxSpeed        = 255;  // speed for “full throttle”
 int baseSpeed       = 90;   // default cruising speed
 int currentSpeed    = baseSpeed;   //variable to store calculated speed based on joystick+throttle input to be passed to set motor function
-int speedChangeRate = 4;    // speed changes over every loop at this rate to prevent jerking
+int speedChangeRate = 6;    // speed changes over every loop at this rate to prevent jerking
 int joystickDeadzone = 70;  //to account for the error in the controller joystick
-float turnSensitivity = 0.4;   //for better control. without this bot starts taking pturns for small x-input
+float turnSensitivity = 0.55;   //for better control. without this bot starts taking pturns for small x-input
                                //Change turn sensitivity for changing turning radius
 
 // —————— BLUPAD32 GAMEPAD(nothing much to change) ——————
@@ -101,12 +101,12 @@ void processGamepad(ControllerPtr ctl) {
 
     if (ccwpturn) {
         // ccw point turn
-        int target = min(int(maxSpeed * 0.6), currentSpeed + speedChangeRate);
+        int target = min(int(maxSpeed), currentSpeed + speedChangeRate);
         currentSpeed += (currentSpeed < target) ? speedChangeRate : -speedChangeRate;
         setMotorSpeeds(currentSpeed, -currentSpeed);}
     else if(cwpturn){
         // cw point turn
-        int target = min(int(maxSpeed * 0.6), currentSpeed + speedChangeRate);
+        int target = min(int(maxSpeed), currentSpeed + speedChangeRate);
         currentSpeed += (currentSpeed < target) ? speedChangeRate : -speedChangeRate;
         setMotorSpeeds(-currentSpeed, currentSpeed);
     }
@@ -177,7 +177,7 @@ void processGamepad(ControllerPtr ctl) {
         
         int leftSp  = constrain(forward - turn, -max_pwm, max_pwm);
         int rightSp = constrain(forward + turn, -max_pwm, max_pwm);
-        setMotorSpeeds(leftSp, rightSp);
+        setMotorSpeeds(leftSp, rightSp*0.955);
     }
 
     dumpGamepad(ctl);
@@ -220,6 +220,9 @@ void setup() {
 
 void setMotorSpeeds(int leftSpeed, int rightSpeed) {
 
+
+
+
     // Constrain to absolute range
     leftSpeed = constrain(leftSpeed, -max_pwm, max_pwm);
     rightSpeed = constrain(rightSpeed, -max_pwm, max_pwm);
@@ -245,4 +248,5 @@ void loop() {
     }
     vTaskDelay(1);
 }
+
 
