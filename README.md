@@ -241,5 +241,3 @@ Open source for educational and competition purposes.
 **Author**: SanjayS66  
 **Last Updated**: January 2026
 
-**Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted)**: 2026-01-04 05:23:19  
-**Current User's Login**: SanjayS66
