@@ -219,6 +219,17 @@ float turnSensitivity = 0.55; // Turn response (0.0-1.0)
 - **Update Rate**: ~1ms loop delay
 - **Max Controllers**: 1 (configured)
 
+## 🎬 Demonstrations
+
+
+https://github.com/user-attachments/assets/7314d787-30e2-4ba8-bb36-af40f66a0dd8
+
+
+
+https://github.com/user-attachments/assets/e3994bf6-4fd8-4061-8f9a-ba68bbf8ad59
+
+
+
 ## 🤝 Contributing
 
 This is a competition project for Technoxian Robohockey. Feel free to:
