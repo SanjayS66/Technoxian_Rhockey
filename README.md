@@ -240,11 +240,7 @@ This is a competition project for Technoxian Robohockey. Feel free to:
 
 ## 📝 License
 
-Open source for educational and competitio
-
-https://github.com/user-attachments/assets/86614049-c590-48c1-a19d-c0cf5ce2c7bd
-
-n purposes.
+Open source for educational and competition purposes.
 
 ## 🏆 Competition
 
